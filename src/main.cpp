@@ -201,14 +201,18 @@ int main() {
   	map_waypoints_dy.push_back(d_y);
   }
 
+  double ref_vel = 0;
+  int lane = 1;
 
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+
+  h.onMessage([&ref_vel,&lane,&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
     //auto sdata = string(data).substr(0, length);
     //cout << sdata << endl;
+
     if (length && length > 2 && data[0] == '4' && data[1] == '2') {
 
       auto s = hasData(data);
@@ -216,8 +220,8 @@ int main() {
       if (s != "") {
         auto j = json::parse(s);
         
+
         string event = j[0].get<string>();
-        
         if (event == "telemetry") {
           // j[1] is the data JSON object
           
@@ -241,21 +245,57 @@ int main() {
 
           	json msgJson;
 
-          	//Define the next points vector.
-
-
-          	//start in lane 1:
-          	int lane = 1;
-
-          	//reference velocity
-          	double ref_vel = 49.5;
-
-          	//reference acceleration
-          	
-
           	//Check if you are at the early stages of generating the path.
           	// The simulater will provide the previous path for  you.
           	int path_size = previous_path_x.size();
+
+          	//reference acceleration
+
+          	//Avoid clusion with other cars.
+          	
+          	if(path_size > 0){
+
+          		car_s = end_path_s;
+          	}
+
+          	bool too_close = false;
+
+          	//Check if a car too close and also at the same lane with out car.
+          	for(int i = 0; i < sensor_fusion.size(); i++){
+
+          		float d = sensor_fusion[i][6];
+
+          		if(d < (2+4*lane+2) && d > (2+4*lane-2)){
+
+          			double vx = sensor_fusion[i][3];
+          			double vy = sensor_fusion[i][4];
+          			double check_speed = sqrt(pow(vx,2) + pow(vy,2));
+          			double check_car_s = sensor_fusion[i][5];
+
+          			check_car_s+=((double)path_size*0.02*check_speed); 
+
+          		
+
+          		//Check if the car is ahead of our car and it is close to our car in the near future.
+          		if((check_car_s > car_s) && ((check_car_s - car_s) < 30)){
+          			too_close = true;
+
+          			if(lane>0){
+          				lane = 0;
+          			}
+          			}
+          		}
+          	}
+
+          	if(too_close){
+          		ref_vel-=0.25;
+          	}
+          	else if (ref_vel < 49.5)
+          	{
+          		ref_vel+=0.25;
+          	}
+
+
 
           	//Creat a list of sparsely seperated points
           	vector<double> ptsx;
