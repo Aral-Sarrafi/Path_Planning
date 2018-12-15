@@ -240,23 +240,36 @@ int main() {
           	auto sensor_fusion = j[1]["sensor_fusion"];
 
           	json msgJson;
-		    //start in lane 1:
-            int lane = 1;
 
-            //reference velocity
-          	double ref_vel = 49.5;//mph
+          	//Define the next points vector.
 
+
+          	//start in lane 1:
+          	int lane = 1;
+
+          	//reference velocity
+          	double ref_vel = 49.5;
+
+          	//reference acceleration
+          	
+
+          	//Check if you are at the early stages of generating the path.
+          	// The simulater will provide the previous path for  you.
           	int path_size = previous_path_x.size();
 
+          	//Creat a list of sparsely seperated points
           	vector<double> ptsx;
           	vector<double> ptsy;
 
+          	// define the refernce x, y, yaw.
+          	// The reference states are either the states of the car or it will be calcluated based on perivious path end points.
           	double ref_x = car_x;
           	double ref_y = car_y;
           	double ref_yaw = deg2rad(car_yaw);
 
+          	//if the previous path is almost empy use the car states as the reference.
           	if(path_size < 2){
-          		
+
           		double prev_car_x = car_x - cos(car_yaw);
           		double prev_car_y = car_y - sin(car_yaw);
 
@@ -267,15 +280,18 @@ int main() {
           		ptsy.push_back(car_y);
 
           	}
+          	//if the previous path is not empty use the last two point of the previous path as the starting points
+          	//of the new path
           	else{
 
-          		ref_x = previous_path_x[path_size - 1];
-          		ref_y = previous_path_y[path_size - 1];
 
-          		double ref_x_prev = previous_path_x[path_size - 2];
-          		double ref_y_prev = previous_path_y[path_size - 2];
+          		ref_x = previous_path_x[path_size-1];
+          		ref_y = previous_path_y[path_size-1];
 
-          		ref_yaw = atan2(ref_y - ref_y_prev, ref_x - ref_x_prev);
+          		double ref_x_prev = previous_path_x[path_size-2];
+          		double ref_y_prev = previous_path_y[path_size-2];
+
+          		double ref_yaw = atan2(ref_y-ref_y_prev, ref_x-ref_x_prev);
 
           		ptsx.push_back(ref_x_prev);
           		ptsx.push_back(ref_x);
@@ -283,13 +299,13 @@ int main() {
           		ptsy.push_back(ref_y_prev);
           		ptsy.push_back(ref_y);
 
+
           	}
 
-          	//Using the Fernet coordinate I will generate 3 way points ahead of starting reference points.
-
-          	vector<double> next_wp0 = getXY(car_s + 30, (2 + 4 * lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-          	vector<double> next_wp1 = getXY(car_s + 60, (2 + 4 * lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-          	vector<double> next_wp2 = getXY(car_s + 90, (2 + 4 * lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          	// In Frenet coordinate system add points that are evenly spaced by 30m ahead of the starting reference.
+          	vector<double> next_wp0 = getXY(car_s+30,(2+4*lane),map_waypoints_s,map_waypoints_x,map_waypoints_y);
+          	vector<double> next_wp1 = getXY(car_s+60,(2+4*lane),map_waypoints_s,map_waypoints_x,map_waypoints_y);
+          	vector<double> next_wp2 = getXY(car_s+90,(2+4*lane),map_waypoints_s,map_waypoints_x,map_waypoints_y);
 
           	ptsx.push_back(next_wp0[0]);
           	ptsx.push_back(next_wp1[0]);
@@ -299,39 +315,45 @@ int main() {
           	ptsy.push_back(next_wp1[1]);
           	ptsy.push_back(next_wp2[1]);
 
+          	//Transform all the points to the car local coordinate system.
           	for(int i = 0; i < ptsx.size(); i++){
 
           		double shift_x = ptsx[i] - ref_x;
           		double shift_y = ptsy[i] - ref_y;
 
-          		ptsx[i] = (shift_x * cos(0 - ref_yaw) - shift_y * sin(0 - ref_yaw));
-          		ptsy[i] = (shift_x * sin(0 - ref_yaw) + shift_y * cos(0 - ref_yaw));
+          		ptsx[i] = (shift_x*cos(0-ref_yaw) - shift_y*sin(0-ref_yaw));
+          		ptsy[i] = (shift_x*sin(0-ref_yaw) + shift_y*cos(0-ref_yaw));
           	}
 
-          	// Creat spline
+          	//Creat a spline
           	tk::spline s;
 
+          	// set (x,y) points to the spline
           	s.set_points(ptsx,ptsy);
 
           	vector<double> next_x_vals;
           	vector<double> next_y_vals;
 
-          	for(int i = 0; i< previous_path_x.size(); i++){
+          	// Start with all the previous path points from the last time.
+          	for(int i = 0; i < previous_path_x.size(); i++){
+
           		next_x_vals.push_back(previous_path_x[i]);
           		next_y_vals.push_back(previous_path_y[i]);
+
           	}
 
-          	// Sample from the spline
-          	double target_x = 30;
+          	double target_x = 30.0;
           	double target_y = s(target_x);
+
           	double target_dist = sqrt(pow(target_x,2) + pow(target_y,2));
 
           	double x_add_on = 0;
 
-          	for(int i = 0; i < 50 - previous_path_x.size(); i++){
+          	for(int i = 0; i <= 50-previous_path_x.size();i++){
 
           		double N = (target_dist/(0.02 * ref_vel/2.24));
-          		double x_point = x_add_on + target_x/N;
+
+          		double x_point = x_add_on + (target_x/N);
           		double y_point = s(x_point);
 
           		x_add_on = x_point;
@@ -339,11 +361,10 @@ int main() {
           		double x_ref = x_point;
           		double y_ref = y_point;
 
-          		//Rotation
-          		x_point =(x_ref * cos(ref_yaw) - y_ref * sin(ref_yaw));
-          		y_point =(x_ref * sin(ref_yaw) + y_ref * cos(ref_yaw));
+          		// Transfrom the points back to the global coordinate system.
+          		x_point = (x_ref*cos(ref_yaw)-y_ref*sin(ref_yaw));
+          		y_point = (x_ref*sin(ref_yaw)+y_ref*cos(ref_yaw));
 
-          		//Shift
           		x_point+=ref_x;
           		y_point+=ref_y;
 
@@ -351,6 +372,10 @@ int main() {
           		next_y_vals.push_back(y_point);
 
           	}
+
+
+
+		   
 
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
           	msgJson["next_x"] = next_x_vals;
