@@ -5,11 +5,11 @@ This project implements a simple path planning logic unit to navigate the vehicl
 <img src = "Path_Planning.gif" align="center" width = "600" hight = "600">
 
 # Behavioural Planning Model Explanation
-The behavioral planning model gets the information about the other vehicles on the from the sensor fusion module. The decision making is mainly based on the following three flags:
+The behavioral planning model gets the information about the other vehicles from the sensor fusion module. The decision making is mainly based on the following three flags:
 
-1) Car_ahead: Evaluates if there is a car ahead of our self-driving car.
-2) Car_left: Evaluates if there is a car left of our self-driving car.
-3) Car_right: Evaluates if there is a car right of our self-driving car.
+1) **Car_ahead:** Evaluates if there is a car ahead of our self-driving car.
+2) **Car_left:** Evaluates if there is a car left of our self-driving car.
+3) **Car_right:** Evaluates if there is a car right of our self-driving car.
 
 Based on these three flags the behavioral planning module makes one of the following decisions:
 
