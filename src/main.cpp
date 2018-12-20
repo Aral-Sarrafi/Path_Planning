@@ -262,6 +262,7 @@ int main() {
 			bool car_ahead = false;
 			bool car_left = false;
 			bool car_right = false;
+			bool get_speed = false;
 			double d;
 
 			double car_ahead_speed;
@@ -323,6 +324,7 @@ int main() {
 				if(car_lane == lane){
 					// Other Car is in the same of our car.
 					car_ahead |= (other_car_s > car_s) && (other_car_s - car_s) < front_safe_dist;
+					get_speed |= (other_car_s > car_s) && (other_car_s - car_s) < front_safe_dist;
 					
 					if (car_ahead){// If you have detected the vehicle ahear of your car save its index. We will...
 						// Use this index to follow this car.
@@ -360,13 +362,16 @@ int main() {
 				}
 				else{// If there is a car ahead of you, and none of the lanes are safe to make a lane change reduce your speed.
 					cout<<"Keeping the lane, and slowing down to follow the vehicle ahead."<<endl;
-					if(ref_vel >  car_ahead_speed){
+					if(ref_vel >  car_ahead_speed + max_acc){
 
 						ref_vel-= 0.9 * max_acc;
 					}
-					else if(ref_vel <  car_ahead_speed){
+					else if(ref_vel <  car_ahead_speed - max_acc){
 						ref_vel+= 0.9 * max_acc;
 
+					}
+					else{
+						ref_vel = car_ahead_speed;
 					}
 
 				}
@@ -380,6 +385,7 @@ int main() {
 					//changing the lane, and the vehicle can navigate trough the traffic easier.
 
 					if((lane ==0 && !car_right) || (lane == 2 && !car_left)){
+						cout<<"Safe to got back to center lane."<<endl;
 						lane = 1;
 					}
 				}
@@ -388,7 +394,11 @@ int main() {
 				if(ref_vel < max_speed){
 
 					cout<<"Safe to accelerate."<<endl;
-					ref_vel+=max_acc;
+					ref_vel+= 0.9 *max_acc;
+				}
+				else{
+					cout<<"Decrease speed."<<endl;
+					ref_vel-= 0.9 * max_acc;
 				}
 			}
 
