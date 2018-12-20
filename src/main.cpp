@@ -255,139 +255,145 @@ int main() {
           	int path_size = previous_path_x.size();
 
 
-          	//Avoid clusion with other cars.
-          	int * ptrlane;
-          	double * ptrvel;
 
-          	ptrvel = & ref_vel;
-          	ptrlane = & lane;
+          	//******* Behaviour Planning *******//
 
+		    // Loop over all the vehicles in the sensor fusion data set to check the different conditions and make a decision.
+			bool car_ahead = false;
+			bool car_left = false;
+			bool car_right = false;
+			double d;
 
-          	//Behavioral_Planner(sensor_fusion,path_size,end_path_s,car_s,car_d,car_speed,ptrlane,ptrvel);
-	    // Loop over all the vehicles in the sensor fusion data set to check the different conditions and make a decision.
-		bool car_ahead = false;
-		bool car_left = false;
-		bool car_right = false;
-		double d;
+			double car_ahead_speed;
 
-		double car_ahead_speed;
+			const double max_speed = 49.5;
+			const double max_acc = 0.224;
 
-		const double max_speed = 49.5;
-		const double max_acc = 0.224;
-		const double side_safe_dist = 30;
-		const double front_safe_dist = 30;
+			// Increasing these numbers will make the driving safer, but ofcouse it makes the planner very cautious for
+			// Changing lines.
 
-		if(path_size > 0){
+			//****************
+			// More lane changing, and going through the traffic faster.
+			//const double side_safe_dist = 20;
+			//const double front_safe_dist = 25;
 
-			car_s = end_path_s;
-		}
+			//*****************
+			// For a more safe driving experience the following values can be used.
+			 const double side_safe_dist = 30;
+			 const double front_safe_dist = 30;
+			//*****************
+			if(path_size > 0){
 
-
-		for (unsigned int i = 0; i < sensor_fusion.size(); i++){
-
-			// Find which lane the other car are driving in.
-			d = sensor_fusion[i][6];
-
-			int car_lane = -1;
-
-			if(d > 0 && d < 4){
-				car_lane = 0;
-			}
-			else if(d > 4 && d < 8){
-				car_lane = 1;
-
-			}
-			else if(d > 8 && d < 12){
-				car_lane = 2;
+				car_s = end_path_s;
 			}
 
-			// Ignore all the other cars
-			if(car_lane < 0){
-				continue;
-			}
 
-			// Recover the other cars speed and and their S coordinate.
-			double vx = sensor_fusion[i][3];
-			double vy = sensor_fusion[i][4];
-			double other_car_speed  = sqrt(pow(vx,2) + pow(vy,2));
-			double other_car_s = sensor_fusion[i][5];
+			for (unsigned int i = 0; i < sensor_fusion.size(); i++){
 
-			// Esimate the other car's s in the near future.
-			other_car_s += ((double)path_size * 0.02 * other_car_speed);
-			// Evaluate the car_ahead, car_left, car_right flags for decision-making.
-			if(car_lane == lane){
-				// Other Car is in the same of our car.
-				car_ahead |= (other_car_s > car_s) && (other_car_s - car_s) < front_safe_dist;
-				
-				if (car_ahead){// If you have detected the vehicle ahear of your car save its index. We will...
-					// Use this index to follow this car.
-					car_ahead_speed = other_car_speed;
+				// Find which lane the other car are driving in.
+				d = sensor_fusion[i][6];
+
+				int car_lane = -1;
+
+				if(d > 0 && d < 4){
+					car_lane = 0;
+				}
+				else if(d > 4 && d < 8){
+					car_lane = 1;
 
 				}
-			}
-			else if(car_lane - lane == -1){
-				// Other Car is in Left Lane of our Car.
-				car_left |= (abs(other_car_s - car_s) < side_safe_dist);
-			}
-			else if(car_lane - lane == 1){
-				car_right |= (abs(other_car_s - car_s) < side_safe_dist);
-			}
-
-		}
-
-
-		// Plan a Behaviour Based on the computer flags.
-
-		if(car_ahead){//If there is a car ahead
-
-			cout<<"Car a head."<<endl;
-			if(!car_left && lane > 0){// If there is no car in your left and your are not in the left lane.
-
-				cout<<"Changing to left."<<endl;
-				lane--;; // Change to the left lane.
-
-			}
-			else if(!car_right && *ptrlane !=2){//If there is no car in your right, and you are not in the right lane.
-
-				cout<<"Changing to right lane."<<endl;
-				lane++; // Change to the right lane.
-
-			}
-			else{// If there is a car ahead of you, and none of the lanes are safe to make a lane change reduce your speed.
-				cout<<"Keeping the lane, and slowing down to follow the vehicle ahead."<<endl;
-				if(ref_vel >  car_ahead_speed){
-
-					ref_vel-= 0.4 * max_acc;
+				else if(d > 8 && d < 12){
+					car_lane = 2;
 				}
-				else if(ref_vel <  car_ahead_speed){
-					ref_vel+= 0.4 * max_acc;
 
+				// Ignore all the other cars
+				if(car_lane < 0){
+					continue;
 				}
-		
 
-			}
+				// Recover the other cars speed and and their S coordinate.
+				double vx = sensor_fusion[i][3];
+				double vy = sensor_fusion[i][4];
+				double other_car_speed  = sqrt(pow(vx,2) + pow(vy,2));
+				double other_car_s = sensor_fusion[i][5];
 
-		}
-		else{// If there is not a car ahead of you. In general it is better to stay in the middle lane.
-			//Beause when you are in the middle lane you have more options to choose from (right lane and left lane)
-			cout<<"There in NO car ahead."<<endl;
-			if(*ptrlane !=1){// If you are not in the middle lane.
-				if((lane == 0 && !car_right) || (lane == 2) && !car_left){
-					cout<<"Safe to go back to center."<<endl;
-					lane = 1;
+				// Esimate the other car's s in the near future.
+				other_car_s += ((double)path_size * 0.02 * other_car_speed);
+				// Evaluate the car_ahead, car_left, car_right flags for decision-making.
+				if(car_lane == lane){
+					// Other Car is in the same of our car.
+					car_ahead |= (other_car_s > car_s) && (other_car_s - car_s) < front_safe_dist;
+					
+					if (car_ahead){// If you have detected the vehicle ahear of your car save its index. We will...
+						// Use this index to follow this car.
+						car_ahead_speed = other_car_speed;
+
+					}
+				}
+				else if(car_lane - lane == -1){
+					// Other Car is in Left Lane of our Car.
+					car_left |= (abs(other_car_s - car_s) < side_safe_dist);
+				}
+				else if(car_lane - lane == 1){
+					car_right |= (abs(other_car_s - car_s) < side_safe_dist);
 				}
 
 			}
 
-			//If there is not car ahead of you accelerate to reach the maximum speed limit.
-			if(*ptrvel < max_speed){
 
-				cout<<"Safe to accelerate."<<endl;
-				ref_vel+=max_acc;
+			// Plan a Behaviour Based on the flags.
+
+			if(car_ahead){//If there is a car ahead
+
+				cout<<"Car a head."<<endl;
+				if(!car_left && lane > 0){// If there is no car in your left and your are not in the left lane.
+
+					cout<<"Changing to left."<<endl;
+					lane--;; // Change to the left lane.
+
+				}
+				else if(!car_right && lane !=2){//If there is no car in your right, and you are not in the right lane.
+
+					cout<<"Changing to right lane."<<endl;
+					lane++; // Change to the right lane.
+
+				}
+				else{// If there is a car ahead of you, and none of the lanes are safe to make a lane change reduce your speed.
+					cout<<"Keeping the lane, and slowing down to follow the vehicle ahead."<<endl;
+					if(ref_vel >  car_ahead_speed){
+
+						ref_vel-= 0.9 * max_acc;
+					}
+					else if(ref_vel <  car_ahead_speed){
+						ref_vel+= 0.9 * max_acc;
+
+					}
+
+				}
+
 			}
-		}
+			else{// If there is not a car ahead of you. In general it is better to stay in the middle lane.
+				//Beause when you are in the middle lane you have more options to choose from (right lane and left lane)
+				cout<<"There in NO car ahead."<<endl;
+
+				if(lane != 1){// In general it is better to drive in the middle lane. This will the vehicle more options for
+					//changing the lane, and the vehicle can navigate trough the traffic easier.
+
+					if((lane ==0 && !car_right) || (lane == 2 && !car_left)){
+						lane = 1;
+					}
+				}
+
+				//If there is not car ahead of you accelerate to reach the maximum speed limit.
+				if(ref_vel < max_speed){
+
+					cout<<"Safe to accelerate."<<endl;
+					ref_vel+=max_acc;
+				}
+			}
 
 
+			//***** Trajectory Generation Based on the selection Behaviour****///
 
           	//Creat a list of sparsely seperated points
           	vector<double> ptsx;
